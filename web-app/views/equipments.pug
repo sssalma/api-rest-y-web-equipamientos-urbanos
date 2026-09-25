@@ -1,0 +1,338 @@
+extends layout
+
+block content
+  .row
+    .col-12
+      nav(aria-label="breadcrumb")
+        ol.breadcrumb
+          li.breadcrumb-item
+            a(href="/") Inicio
+          li.breadcrumb-item.active Equipamientos
+
+  .row
+    .col-12
+      .card
+        .card-body
+          h1.card-title 🏢 Equipamientos de Tarragona
+          p.lead Explora y descubre todos los equipamientos disponibles
+
+  //- CERCA I FILTRAT
+  .row.mb-4
+    .col-12
+      .card
+        .card-body
+          h5.card-title 🔍 Búsqueda y Filtros
+          
+          //- Cerca per nom
+          .row.mb-3
+            .col-md-6
+              label.form-label.fw-bold Buscar por nombre
+              input.form-control(
+                type="text" 
+                id="searchInput" 
+                placeholder="Escribe para buscar..." 
+                autocomplete="off"
+              )
+              #searchSuggestions.list-group(style="display: none; position: absolute; z-index: 1000; width: 100%;")
+          
+          //- Filtres avançats
+          .row
+            .col-md-3
+              .mb-3
+                label.form-label.fw-bold 🏷️ Tipo
+                select.form-select(id="typeFilter")
+                  option(value="") Todos los tipos
+                  each type in types
+                    option(value=type)= type
+            
+            .col-md-3
+              .mb-3
+                label.form-label.fw-bold 📍 Distrito
+                select.form-select(id="districtFilter")
+                  option(value="") Todos los distritos
+                  each district in districts
+                    option(value=district)= district
+            
+            .col-md-3
+              .mb-3
+                label.form-label.fw-bold ⭐ Valoración mínima
+                select.form-select(id="ratingFilter")
+                  option(value="0") Cualquier valoración
+                  option(value="3") 3+ estrellas
+                  option(value="4") 4+ estrellas
+                  option(value="5") 5 estrellas
+            
+            .col-md-3
+              .mb-3
+                label.form-label.fw-bold 🔄 Ordenar por
+                select.form-select(id="sortFilter")
+                  option(value="name") Nombre (A-Z)
+                  option(value="nameDesc") Nombre (Z-A)
+                  option(value="rating") Mejor valorados
+                  option(value="type") Tipo
+
+          //- BOTÓ NETEJAR
+          .row
+            .col-12.text-end
+              button.btn.btn-outline-secondary(
+                onclick="resetFilters()"
+                id="resetBtn"
+                style="display: none;"
+              )
+                | 🗑️ Limpiar todos los filtros
+
+  //- Llista principal d’equipaments
+  .row
+    .col-12
+      #equipmentsList
+        if equipments && equipments.length > 0
+          .row
+            each equipment in equipments
+              .col-md-6.col-lg-4.mb-4
+                .card.h-100
+                  .card-body
+                    h5.card-title= equipment.name
+                    h6.card-subtitle.mb-2.text-muted= equipment.type
+                    
+                    if equipment.address
+                      p.card-text.small
+                        small 📍 #{equipment.address}
+                    
+                    if equipment.description
+                      p.card-text.small.text-truncate= equipment.description
+                    
+                    .mb-2
+                      if equipment.averageRating > 0
+                        span.badge.bg-warning.text-dark ⭐ #{equipment.averageRating.toFixed(1)}/5
+                        small.text-muted.ms-1 (#{equipment.totalRatings || 0})
+                      else
+                        small.text-muted Sin valoraciones
+                    
+                    if equipment.district
+                      .mb-2
+                        small.text-muted 🗺️ #{equipment.district}
+                    
+                    if equipment.isMunicipal
+                      .mb-2
+                        span.badge.bg-success.small Municipal
+                  
+                  .card-footer
+                    .d-flex.justify-content-between.align-items-center
+                      a.btn.btn-sm.btn-outline-primary(href=`/equipments/${equipment._id}`) 
+                        | 👁️ Ver detalles
+                      if user && user.role === 'admin'
+                        .btn-group
+                          a.btn.btn-sm.btn-outline-warning(href=`/equipments/${equipment._id}/edit`)
+                            | ✏️
+                          form.d-inline(method="POST" action=`/equipments/${equipment._id}?_method=DELETE`)
+                            button.btn.btn-sm.btn-outline-danger(
+                              type="submit" 
+                              onclick="return confirm('¿Quieres eliminar este equipamiento?')"
+                            )
+                              | 🗑️
+        else
+          .col-12
+            .alert.alert-info.text-center
+              h4 📝 No hay equipamientos disponibles
+              p No se han encontrado equipamientos.
+              if user && user.role === 'admin'
+                a.btn.btn-primary(href="/equipments/new") ➕ Añadir equipamiento
+
+  //- Script per a la cerca i el filtrat
+  script.
+    // Passar dades des de Pug a JavaScript
+    const allEquipments = !{JSON.stringify(equipments)};
+    const isAdmin = !{user && user.role === 'admin' ? 'true' : 'false'};
+    
+    // Elements del DOM
+    const searchInput = document.getElementById('searchInput');
+    const searchSuggestions = document.getElementById('searchSuggestions');
+    const typeFilter = document.getElementById('typeFilter');
+    const districtFilter = document.getElementById('districtFilter');
+    const ratingFilter = document.getElementById('ratingFilter');
+    const sortFilter = document.getElementById('sortFilter');
+    
+    let searchTimeout;
+
+    // Suggeriments de cerca (typeahead)
+    searchInput.addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase();
+      
+      if (searchTerm.length < 2) {
+        searchSuggestions.style.display = 'none';
+        applyFilters(); // Aplica el filtre encara que la cerca sigui curta
+        return;
+      }
+      
+      const matches = allEquipments
+        .map(eq => eq.name)
+        .filter(name => name.toLowerCase().includes(searchTerm))
+        .slice(0, 5);
+      
+      if (matches.length > 0) {
+        let suggestionsHTML = '';
+        matches.forEach(match => {
+          suggestionsHTML += `
+            <button type="button" class="list-group-item list-group-item-action" 
+                    onclick="selectSuggestion('${match.replace(/'/g, "\\'")}')">
+              ${match}
+            </button>
+          `;
+        });
+        
+        searchSuggestions.innerHTML = suggestionsHTML;
+        searchSuggestions.style.display = 'block';
+      } else {
+        searchSuggestions.style.display = 'none';
+      }
+      
+      // Aplicar filtres amb "debounce"
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        applyFilters();
+      }, 300);
+    });
+    
+    // Amagar suggeriments en fer clic fora
+    document.addEventListener('click', function(e) {
+      if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+        searchSuggestions.style.display = 'none';
+      }
+    });
+    
+    // Seleccionar suggeriment
+    function selectSuggestion(name) {
+      searchInput.value = name;
+      searchSuggestions.style.display = 'none';
+      applyFilters();
+    }
+    
+    // Aplicar filtres
+    function applyFilters() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const selectedType = typeFilter.value;
+      const selectedDistrict = districtFilter.value;
+      const minRating = parseFloat(ratingFilter.value);
+      const sortBy = sortFilter.value;
+      
+      let filtered = allEquipments.filter(equipment => {
+        const matchesSearch = !searchTerm || equipment.name.toLowerCase().includes(searchTerm);
+        const matchesType = !selectedType || equipment.type === selectedType;
+        const matchesDistrict = !selectedDistrict || (equipment.district && equipment.district === selectedDistrict);
+        const matchesRating = (equipment.averageRating || 0) >= minRating;
+        
+        return matchesSearch && matchesType && matchesDistrict && matchesRating;
+      });
+      
+      // Ordenar resultats
+      filtered.sort((a, b) => {
+        switch(sortBy) {
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'nameDesc':
+            return b.name.localeCompare(a.name);
+          case 'rating':
+            return (b.averageRating || 0) - (a.averageRating || 0);
+          case 'type':
+            return a.type.localeCompare(b.type);
+          default:
+            return 0;
+        }
+      });
+      
+      updateEquipmentList(filtered);
+      toggleResetButton();
+    }
+    
+    // Actualitzar la llista d’equipaments
+    function updateEquipmentList(equipments) {
+      const container = document.getElementById('equipmentsList');
+      
+      if (equipments.length === 0) {
+        container.innerHTML = `
+          <div class="col-12">
+            <div class="alert alert-warning text-center">
+              <h4>🔍 No se han encontrado resultados</h4>
+              <p>No hay equipamientos que coincidan con los criterios de búsqueda.</p>
+              <button class="btn btn-outline-secondary" onclick="resetFilters()">
+                🗑️ Limpiar filtros
+              </button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = '<div class="row">';
+      
+      equipments.forEach(equipment => {
+        const adminButtons = isAdmin ? `
+          <div class="btn-group">
+            <a href="/equipments/${equipment._id}/edit" class="btn btn-sm btn-outline-warning">✏️</a>
+            <form class="d-inline" method="POST" action="/equipments/${equipment._id}?_method=DELETE">
+              <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Quieres eliminar este equipamiento?')">🗑️</button>
+            </form>
+          </div>
+        ` : '';
+        
+        html += `
+          <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+              <div class="card-body">
+                <h5 class="card-title">${equipment.name}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">${equipment.type}</h6>
+                ${equipment.address ? `<p class="card-text small"><small>📍 ${equipment.address}</small></p>` : ''}
+                ${equipment.description ? `<p class="card-text small text-truncate">${equipment.description}</p>` : ''}
+                <div class="mb-2">
+                  ${equipment.averageRating > 0 ? 
+                    `<span class="badge bg-warning text-dark">⭐ ${equipment.averageRating.toFixed(1)}/5</span>
+                     <small class="text-muted ms-1">(${equipment.totalRatings || 0})</small>` :
+                    `<small class="text-muted">Sin valoraciones</small>`
+                  }
+                </div>
+                ${equipment.district ? `<div class="mb-2"><small class="text-muted">🗺️ ${equipment.district}</small></div>` : ''}
+                ${equipment.isMunicipal ? `<div class="mb-2"><span class="badge bg-success small">Municipal</span></div>` : ''}
+              </div>
+              <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                  <a href="/equipments/${equipment._id}" class="btn btn-sm btn-outline-primary">👁️ Ver detalles</a>
+                  ${adminButtons}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+      container.innerHTML = html;
+    }
+    
+    // Mostrar o amagar el botó de reinici
+    function toggleResetButton() {
+      const hasFilters = searchInput.value || typeFilter.value || districtFilter.value || 
+                        ratingFilter.value !== '0' || sortFilter.value !== 'name';
+      document.getElementById('resetBtn').style.display = hasFilters ? 'inline-block' : 'none';
+    }
+    
+    // Reiniciar filtres
+    function resetFilters() {
+      searchInput.value = '';
+      typeFilter.value = '';
+      districtFilter.value = '';
+      ratingFilter.value = '0';
+      sortFilter.value = 'name';
+      searchSuggestions.style.display = 'none';
+      applyFilters();
+    }
+    
+    // Aplicar filtres automàticament en canviar un select
+    typeFilter.addEventListener('change', applyFilters);
+    districtFilter.addEventListener('change', applyFilters);
+    ratingFilter.addEventListener('change', applyFilters);
+    sortFilter.addEventListener('change', applyFilters);
+    
+    // Inicialització
+    document.addEventListener('DOMContentLoaded', function() {
+      applyFilters();
+    });

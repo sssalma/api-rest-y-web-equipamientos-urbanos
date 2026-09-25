@@ -1,0 +1,70 @@
+extends layout
+
+block content
+  .row.justify-content-center
+    .col-md-8
+      .card
+        .card-body
+          h2.card-title= title
+          
+          form(action=action method="POST")
+            .mb-3
+              label.form-label(for="name") Nombre *
+              input.form-control(
+                type="text" 
+                name="name" 
+                id="name" 
+                value=equipment.name || ''
+                required
+              )
+            .mb-3
+              label.form-label(for="type") Tipo *
+              select.form-select(name="type" id="type" required)
+                option(value="") Seleccionar tipo...
+                option(value="Parques" selected=equipment.type==='Parques') Parques
+                option(value="Biblioteques" selected=equipment.type==='Biblioteques') Bibliotecas
+                option(value="Organismes oficials" selected=equipment.type==='Organismes oficials') Organismos oficiales
+                option(value="Centres educatius" selected=equipment.type==='Centres educatius') Centros educativos
+                option(value="Equipaments esportius" selected=equipment.type==='Equipaments esportius') Equipamientos deportivos
+            .row
+              .col-md-6
+                .mb-3
+                  label.form-label(for="latitude") Latitud *
+                  input.form-control(
+                    type="number" 
+                    step="any"
+                    name="latitude" 
+                    id="latitude" 
+                    value=equipment.latitude || ''
+                    required
+                  )
+              .col-md-6
+                .mb-3
+                  label.form-label(for="longitude") Longitud *
+                  input.form-control(
+                    type="number" 
+                    step="any"
+                    name="longitude" 
+                    id="longitude" 
+                    value=equipment.longitude || ''
+                    required
+                  )
+            .mb-3
+              label.form-label(for="address") Dirección
+              input.form-control(
+                type="text" 
+                name="address" 
+                id="address" 
+                value=equipment.address || ''
+              )
+            .mb-3
+              label.form-label(for="description") Descripción
+              textarea.form-control(
+                name="description" 
+                id="description" 
+                rows="3"
+              )= equipment.description || ''
+            
+            .d-grid.gap-2.d-md-flex.justify-content-md-end
+              a.btn.btn-secondary.me-md-2(href="/equipments") Cancelar
+              button.btn.btn-primary(type="submit") Guardar

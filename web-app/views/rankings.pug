@@ -1,0 +1,89 @@
+extends layout
+
+block content
+  .container
+    h1 🏆 Rankings
+    p Mira los equipamientos mejor valorados
+
+    .row
+      //- Ranking Global
+      .col-md-6
+        .card
+          .card-body
+            h3 🌟 Top 3 General
+            p Los más valorados por todos
+            
+            if globalRanking.length > 0
+              each equipment, index in globalRanking
+                .card.mb-2
+                  .card-body
+                    .d-flex.justify-content-between
+                      div
+                        if index === 0
+                          h5 🥇 #{equipment.equipmentName}
+                        else if index === 1  
+                          h5 🥈 #{equipment.equipmentName}
+                        else if index === 2
+                          h5 🥉 #{equipment.equipmentName}
+                        
+                        p.mb-0 ⭐ #{equipment.averageRating.toFixed(1)}/5
+                        small (#{equipment.count} votos)
+                      
+                      a.btn.btn-sm.btn-primary(
+                        href=`/equipments/${equipment.equipmentId}`
+                      ) Ver
+            else
+              p.text-muted Todavía no hay votos
+
+      //- Ranking Personal  
+      .col-md-6
+        .card
+          .card-body
+            h3 👤 Tu Top 3
+            
+            if user
+              if personalRanking.length > 0
+                each equipment, index in personalRanking
+                  .card.mb-2
+                    .card-body
+                      .d-flex.justify-content-between
+                        div
+                          h6 #{index + 1}. #{equipment.equipmentName}
+                          p.mb-0 ⭐ #{equipment.rating}/5
+                        
+                        a.btn.btn-sm.btn-primary(
+                          href=`/equipments/${equipment.equipmentId}`
+                        ) Ver
+              else
+                p.text-muted No has votado todavía
+                a.btn.btn-primary(href="/equipments") Ir a votar
+            else
+              p.text-muted Inicia sesión para ver tu ranking
+              a.btn.btn-primary(href="/login") Iniciar sesión
+
+    //- Estadísticas simples
+    .card.mt-4
+      .card-body
+        h4 📊 Estadísticas
+        .row.text-center
+          .col-4
+            p 
+              strong #{globalRanking.length}
+            small Equipamientos
+          .col-4
+            - let totalVotos = 0
+            each eq in globalRanking
+              - totalVotos += eq.count
+            p 
+              strong #{totalVotos}
+            small Votos totales
+          .col-4
+            - let media = 0
+            if globalRanking.length > 0
+              - let suma = 0
+              each eq in globalRanking
+                - suma += eq.averageRating
+              - media = (suma / globalRanking.length).toFixed(1)
+            p 
+              strong #{media}
+            small Media general

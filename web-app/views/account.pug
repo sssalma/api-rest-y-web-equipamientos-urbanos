@@ -1,0 +1,56 @@
+extends layout
+
+block content
+  .row.justify-content-center
+    .col-md-10
+      .card
+        .card-body
+          h2.card-title 👤 Mi Cuenta
+          
+          .row
+            .col-md-6
+              .mb-3
+                strong Nombre: 
+                span= user.name
+              .mb-3
+                strong Email: 
+                span= user.email
+              .mb-3
+                strong Rol: 
+                span.badge(class=user.role === 'admin' ? 'bg-warning' : 'bg-info')= user.role
+              .mb-3
+                strong Miembro desde: 
+                span= user.createdAt.toLocaleDateString('es-ES')
+            
+            .col-md-6
+              .card
+                .card-body
+                  h5.card-title 📊 Mis Estadísticas
+                  .mb-3
+                    strong Valoraciones realizadas: 
+                    span.badge.bg-primary= stats.totalRatings
+                  .mb-3
+                    strong Comentarios escritos: 
+                    span.badge.bg-success= stats.totalComments
+                  .mb-3
+                    strong Equipamientos valorados: 
+                    span.badge.bg-info= stats.uniqueEquipments
+                  
+                  if stats.totalRatings > 0
+                    .d-grid
+                      a.btn.btn-outline-primary(href="/my-ratings") 
+                        | 📝 Ver mis valoraciones
+                  else
+                    p.text-muted.mb-0 Aún no has realizado valoraciones
+
+          //- Secció d'accions ràpides
+          .mt-4
+            h5 🚀 Acciones Rápidas
+            .d-grid.gap-2.d-md-flex
+              a.btn.btn-outline-primary.me-md-2(href="/equipments") 
+                | 🏢 Explorar equipamientos
+              if user.role === 'admin'
+                a.btn.btn-outline-warning.me-md-2(href="/equipments/new") 
+                  | ➕ Añadir equipamiento
+              a.btn.btn-outline-success(href="/my-ratings") 
+                | 💬 Mis valoraciones

@@ -1,0 +1,205 @@
+extends layout
+
+block content
+  .row
+    .col-12
+      nav(aria-label="breadcrumb")
+        ol.breadcrumb
+          li.breadcrumb-item
+            a(href="/") Inicio
+          li.breadcrumb-item
+            a(href="/equipments") Equipamientos
+          li.breadcrumb-item.active= equipment.name
+
+  .row
+    .col-md-8
+      .card
+        .card-body
+          .d-flex.justify-content-between.align-items-start
+            div
+              h1.card-title.mb-2= equipment.name
+              h4.text-muted.mb-3= equipment.type
+            if user && user.role === 'admin'
+              .btn-group
+                a.btn.btn-sm.btn-outline-warning(href=`/equipments/${equipment._id}/edit`)
+                  | ✏️ Editar
+                form.d-inline(method="POST" action=`/equipments/${equipment._id}?_method=DELETE`)
+                  button.btn.btn-sm.btn-outline-danger(type="submit" onclick="return confirm('¿Eliminar este equipamiento?')")
+                    | 🗑️ Eliminar
+          
+          if equipment.address
+            .mb-3
+              h6 📍 Dirección
+              p.mb-0= equipment.address
+          
+          if equipment.description
+            .mb-3
+              h6 📝 Descripción
+              p.mb-0= equipment.description
+          
+          if equipment.schedule
+            .mb-3
+              h6 🕒 Horario
+              p.mb-0= equipment.schedule
+          
+          if equipment.phone
+            .mb-3
+              h6 📞 Teléfono
+              p.mb-0= equipment.phone
+
+    .col-md-4
+      //- FAIG UNA TARJA DE LOCATION USANT GOOGLE MAPS
+      .card.mb-3
+        .card-body
+          h5.card-title 📍 Ubicación
+          if equipment.latitude && equipment.longitude
+            .bg-light.p-3.rounded.text-center
+              p.mb-2 
+                strong Coordenadas:
+              p.mb-1 
+                small Lat: #{equipment.latitude}
+              p.mb-0 
+                small Lng: #{equipment.longitude}
+              .mt-2
+                a.btn.btn-sm.btn-outline-primary(href=`https://maps.google.com/?q=${equipment.latitude},${equipment.longitude}` target="_blank")
+                  | 🗺️ Ver en Google Maps
+          else
+            p.text-muted.mb-0 Sin coordenadas de ubicación
+      
+      //- TARJA INFO ADICIONAL
+      .card
+        .card-body
+          h5.card-title ℹ️ Información
+          if equipment.district
+            .mb-2
+              strong Distrito: 
+              span= equipment.district
+          if equipment.isMunicipal
+            .mb-2
+              strong Tipo: 
+              span.badge.bg-success Municipal
+          if equipment.entityName
+            .mb-0
+              strong Entidad: 
+              span= equipment.entityName
+
+  //- SECCIO VALORACIONS
+  .row.mt-4
+    .col-12
+      .card
+        .card-body
+          .d-flex.justify-content-between.align-items-center.mb-4
+            h4.card-title.mb-0 💬 Valoraciones y Comentarios
+            if ratingData.totalRatings > 0
+              .rating-summary
+                span.fs-5 ⭐ #{ratingData.averageRating}/5
+                span.text-muted.ms-2 (#{ratingData.totalRatings} valoraciones)
+          
+          if user
+            //- FORMULARI PER CREAR/UPDATE VALORACIONS
+            .mb-4.p-3.bg-light.rounded
+              if userRating
+                h5 ✏️ Editar tu valoración
+              else
+                h5 💬 Añadir tu valoración
+              
+              //- FORMULARI PRINCIPAL
+              form(action=`/equipments/${equipment._id}/rate` method="POST" id="ratingForm")
+                input(type="hidden" name="equipmentName" value=equipment.name)
+                
+                .row
+                  .col-md-6
+                    .mb-3
+                      label.form-label.fw-bold Puntuación
+                      .d-flex.align-items-center
+                        each star in [1,2,3,4,5]
+                          .form-check.form-check-inline
+                            input.form-check-input(
+                              type="radio" 
+                              name="rating" 
+                              id=`star${star}` 
+                              value=star
+                              required
+                              checked=(userRating && userRating.rating === star)
+                            )
+                            label.form-check-label.fs-5(for=`star${star}`) ⭐
+                  .col-md-6
+                    .mb-3
+                      label.form-label.fw-bold(for="comment") Tu comentario
+                      textarea.form-control(
+                        name="comment" 
+                        id="comment" 
+                        rows="3" 
+                        placeholder="Comparte tu experiencia con este equipamiento..."
+                      )= userRating ? userRating.comment : ''
+                
+                .d-flex.gap-2
+                  button.btn.btn-success(type="submit") 
+                    | #{userRating ? '📤 Actualizar' : '📤 Publicar'} Valoración
+                  if userRating
+                    button.btn.btn-outline-danger(
+                      type="button"
+                      onclick="deleteRating()"
+                    )
+                      | 🗑️ Eliminar
+              
+              //- FORMULARI OCULT per eliminar --s'enviarà després de la confirmació (mirar script final)
+              if userRating
+                form(method="POST" action=`/equipments/${equipment._id}/rate/delete` id="deleteForm" style="display: none;")
+          
+          else
+            //- PELS USUARIS NO AUTENTICATS
+            .alert.alert-info
+              .d-flex.align-items-center
+                .flex-shrink-0
+                  span.fs-4 🔐
+                .flex-grow-1.ms-3
+                  h5.alert-heading Inicia sesión para valorar
+                  p.mb-0 
+                    | Para añadir valoraciones y comentarios, 
+                    a.alert-link(href="/login") inicia sesión 
+                    | o 
+                    a.alert-link(href="/register") regístrate.
+          
+          //- LLISTA VALORACIONS
+          .mt-4
+            if ratingData.ratings.length > 0
+              h5.mb-3 💭 Valoraciones de la comunidad (#{ratingData.ratings.length})
+              each rating in ratingData.ratings
+                .card.mb-3
+                  .card-body
+                    .d-flex.justify-content-between.align-items-start
+                      div
+                        h6.card-subtitle.mb-1 
+                          strong #{rating.equipmentName}
+                        p.text-muted.small.mb-1 
+                          | Por #{rating.userName || 'Usuario'} • 
+                          | #{new Date(rating.createdAt).toLocaleDateString('es-ES')}
+                      .rating-badge
+                        span.badge.bg-warning.text-dark ⭐ #{rating.rating}/5
+                    if rating.comment
+                      p.card-text.mt-2.mb-0= rating.comment
+            else
+              .text-center.py-4
+                p.text-muted 
+                  | Aún no hay valoraciones para este equipamiento.
+                  br
+                  | ¡Sé el primero en opinar!
+
+  //-NAVEGACIÓ
+  .row.mt-4
+    .col-12
+      .d-flex.justify-content-between
+        a.btn.btn-outline-secondary(href="/equipments")
+          | ← Volver a todos los equipamientos
+        if user && user.role === 'admin'
+          a.btn.btn-outline-primary(href="/equipments/new")
+            | ➕ Añadir nuevo equipamiento
+
+  //-Script per confirmar que l'usuari vol eliminar la valoracio -- ENVIA EL FORMULARI OCULT
+  script.
+    function deleteRating() {
+      if (confirm('¿Estás seguro de que quieres eliminar tu valoración?')) {
+        document.getElementById('deleteForm').submit();
+      }
+    }

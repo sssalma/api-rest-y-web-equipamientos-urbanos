@@ -1,0 +1,34 @@
+extends layout
+
+block content
+  .jumbotron
+    h1.display-4 🏙️ CityEquip
+    p.lead Sistema de gestión de equipamientos de Tarragona
+    hr.my-4
+    p Consume la API REST de equipamientos y permite a usuarios valorar y comentar.
+    a.btn.btn-primary.btn-lg(href="/equipments") Ver Equipamientos
+
+  .row.mt-5
+    .col-md-4
+      .card
+        .card-body
+          h5.card-title 📊 Equipamientos
+          p.card-text Consulta todos los equipamientos de la ciudad de Tarragona.
+          a.btn.btn-outline-primary(href="/equipments") Explorar
+    .col-md-4
+      .card
+        .card-body
+          h5.card-title 🔐 Autenticación
+          p.card-text Regístrate o inicia sesión para valorar equipamientos.
+          if user
+            a.btn.btn-outline-success(href="/account") Mi Cuenta
+          else
+            a.btn.btn-outline-success(href="/register") Registrarse
+
+    //- Botó rankings
+    .col-md-4
+      .card
+        .card-body
+          h5.card-title 🏆 Rankings
+          p.card-text Descubre los equipamientos mejor valorados por la comunidad.
+          a.btn.btn-outline-info(href="/rankings") Ver Rankings        
